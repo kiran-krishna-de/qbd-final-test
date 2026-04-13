@@ -1,0 +1,95 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "invoices"],
+  uniqueKey: ["id","lines__id"],
+  description: "Flat invoices table parsed from raw_payload JSON. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+  const { inc } = require("../../includes/helpers.js");
+
+  // Flat + nested fields
+  const columns = [
+    // Top-level
+    "id",
+    "refNumber",
+    "transactionDate",
+    "dueDate",
+    "createdAt",
+    "updatedAt",
+    "objectType",
+    "revisionNumber",
+    "isPaid",
+    "isPending",
+    "isFinanceCharge",
+    "memo",
+    "subtotal",
+    "salesTaxTotal",
+    "salesTaxPercentage",
+    "appliedAmount",
+    "balanceRemaining",
+
+    // Customer
+    "customer__fullName",
+    "customer__id",
+
+    // Class
+    "class__fullName",
+    "class__id",
+
+    // Billing Address
+    "billingAddress__line1",
+    "billingAddress__line2",
+    "billingAddress__city",
+    "billingAddress__state",
+    "billingAddress__postalCode",
+    "billingAddress__country",
+
+    // Receivables Account
+    "receivablesAccount__fullName",
+    "receivablesAccount__id",
+
+    // Sales Tax Code
+    "salesTaxCode__fullName",
+    "salesTaxCode__id",
+
+    // Lines (array → UNNEST)
+    "lines__id",
+    "lines__description",
+    "lines__amount",
+    "lines__rate",
+    "lines__quantity",
+    "lines__class__fullName",
+    "lines__class__id",
+    "lines__item__fullName",
+    "lines__item__id"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+WITH base AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    JSON_QUERY_ARRAY(raw_payload, '$.lines') AS lines
+  FROM ${ref("qdb_new","invoices")}
+  WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
+  ${inc(ctx)}
+),
+
+flattened AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    l AS lines
+  FROM base,
+  UNNEST(IFNULL(lines, [])) AS l
+)
+
+SELECT
+  ${select_sql},
+  _extracted_at
+FROM flattened
