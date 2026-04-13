@@ -1,0 +1,92 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "bill_check_payments"],
+  uniqueKey: ["id","appliedToTransactions__transactionId"],
+  description: "Flat bill check payments table parsed from raw_payload JSON. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+  const { inc } = require("../../includes/helpers.js");
+
+  const columns = [
+    // Top-level
+    "id",
+    "refNumber",
+    "transactionDate",
+    "createdAt",
+    "updatedAt",
+    "objectType",
+    "revisionNumber",
+    "amount",
+    "memo",
+    "currency",
+    "exchangeRate",
+    "amountInHomeCurrency",
+
+    "isQueuedForPrint",
+
+    // Vendor
+    "vendor__fullName",
+    "vendor__id",
+
+    // Bank account
+    "bankAccount__fullName",
+    "bankAccount__id",
+
+    // Payables account
+    "payablesAccount__fullName",
+    "payablesAccount__id",
+
+    // Address
+    "address__line1",
+    "address__line2",
+    "address__line3",
+    "address__city",
+    "address__state",
+    "address__postalCode",
+    "address__country",
+
+    // Applied transactions (UNNEST)
+    "appliedToTransactions__transactionId",
+    "appliedToTransactions__transactionType",
+    "appliedToTransactions__refNumber",
+    "appliedToTransactions__transactionDate",
+    "appliedToTransactions__amount",
+    "appliedToTransactions__balanceRemaining",
+
+    // Linked transactions (kept flat at same level inside array)
+    "appliedToTransactions__linkedTransactions__id",
+    "appliedToTransactions__linkedTransactions__refNumber",
+    "appliedToTransactions__linkedTransactions__transactionType",
+    "appliedToTransactions__linkedTransactions__amount",
+    "appliedToTransactions__linkedTransactions__transactionDate"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+WITH base AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    JSON_QUERY_ARRAY(raw_payload, '$.appliedToTransactions') AS appliedToTransactions
+  FROM ${ref("qdb_new","bill_check_payments")}
+  WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
+  ${inc(ctx)}
+),
+
+flattened AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    a AS appliedToTransactions
+  FROM base,
+  UNNEST(IFNULL(appliedToTransactions, [])) AS a
+)
+
+SELECT
+  ${select_sql},
+  _extracted_at
+FROM flattened
