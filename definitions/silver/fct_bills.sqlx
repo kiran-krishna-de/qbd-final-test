@@ -1,0 +1,35 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_bills",
+  tags: ["silver", "facts"],
+  description: "Silver: cleaned vendor bills",
+  bigquery: { partitionBy: "transaction_date" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY _extracted_at DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "bills")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS bill_id,
+  transactionId                                   AS transaction_id,
+  TRIM(transactionType)                           AS transaction_type,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  TRIM(refNumber)                                 AS ref_number,
+  payee__id                                       AS vendor_id,
+  TRIM(payee__fullName)                           AS vendor_name,
+  class__id                                       AS class_id,
+  TRIM(class__fullName)                           AS class_name,
+  account__id                                     AS expense_account_id,
+  TRIM(account__fullName)                         AS expense_account_name,
+  SAFE_CAST(amount AS NUMERIC)                    AS amount,
+  SAFE_CAST(balanceRemaining AS NUMERIC)          AS balance_remaining,
+  TRIM(memo)                                      AS memo,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1
+

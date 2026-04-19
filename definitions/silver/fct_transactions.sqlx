@@ -1,0 +1,34 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_transactions",
+  tags: ["silver", "facts"],
+  description: "Silver: general transaction ledger",
+  bigquery: { partitionBy: "transaction_date", clusterBy: ["transaction_type"] }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY transactionId ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "transactions")}
+  WHERE transactionId IS NOT NULL
+)
+SELECT
+  transactionId                                   AS transaction_id,
+  TRIM(transactionType)                           AS transaction_type,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  SAFE_CAST(amount AS NUMERIC)                    AS amount,
+  SAFE_CAST(amountInHomeCurrency AS NUMERIC)      AS amount_home_currency,
+  TRIM(refNumber)                                 AS ref_number,
+  account__id                                     AS account_id,
+  TRIM(account__fullName)                         AS account_name,
+  entity__id                                      AS entity_id,
+  TRIM(entity__fullName)                          AS entity_name,
+  TRIM(currency)                                  AS currency,
+  SAFE_CAST(exchangeRate AS NUMERIC)              AS exchange_rate,
+  TRIM(memo)                                      AS memo,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt)  AS updatedAt,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

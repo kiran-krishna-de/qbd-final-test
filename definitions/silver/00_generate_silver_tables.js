@@ -37,7 +37,7 @@ SILVER_TABLE_CONFIG
             PARTITION BY ${cfg.pk.map(p => `\`${p}\``).join(", ")}
             ORDER BY _extracted_at DESC
           ) AS _row_num
-        FROM ${ctx.ref("qb_bronze", cfg.bronzeTable)}
+        FROM ${ctx.ref("qdb_bronze", cfg.bronzeTable)}
         WHERE ${cfg.pk.map(p => `\`${p}\` IS NOT NULL`).join(" AND ")}
       )
       SELECT * EXCEPT(_row_num)

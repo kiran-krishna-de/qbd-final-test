@@ -1,0 +1,43 @@
+
+-- ============================================================
+-- KPI 10: Backlog (Uninvoiced Sales Orders)
+-- File: definitions/gold/kpi_10_backlog.sqlx
+-- ============================================================
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_10_backlog",
+  tags: ["gold", "kpi"],
+  description: "KPI 10: Open backlog - sales orders not yet fully invoiced"
+}
+
+SELECT
+  so.id                                           AS sales_order_id,
+  so.refNumber                                    AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', so.transactionDate) AS order_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', so.dueDate)         AS due_date,
+  so.customer__id                                 AS customer_id,
+  TRIM(so.customer__fullName)                     AS customer_name,
+  SAFE_CAST(so.subtotal AS NUMERIC)               AS order_subtotal,
+  SAFE_CAST(so.totalAmount AS NUMERIC)            AS order_total,
+  SAFE_CAST(so.isFullyInvoiced AS BOOL)           AS is_fully_invoiced,
+  SAFE_CAST(so.isManuallyClosed AS BOOL)          AS is_closed,
+  -- Backlog = order total minus what's already been invoiced
+  SAFE_CAST(so.totalAmount AS NUMERIC)
+    - COALESCE(inv_agg.invoiced_amount, 0)        AS backlog_amount,
+  COALESCE(inv_agg.invoiced_amount, 0)            AS invoiced_amount,
+  DATE_TRUNC(SAFE.PARSE_DATE('%Y-%m-%d', so.transactionDate), MONTH) AS order_month,
+  DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%Y-%m-%d', so.dueDate), DAY) AS days_overdue,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM ${ref("qdb_bronze", "sales_orders")} so
+LEFT JOIN (
+  SELECT customer_id, SUM(subtotal) AS invoiced_amount
+  FROM ${ref("qdb_silver", "fct_invoices")}
+  WHERE is_finance_charge = FALSE
+  GROUP BY 1
+) inv_agg ON so.customer__id = inv_agg.customer_id
+WHERE SAFE_CAST(so.isFullyInvoiced AS BOOL) = FALSE
+  AND SAFE_CAST(so.isManuallyClosed AS BOOL) = FALSE
+  AND so.id IS NOT NULL
+ORDER BY backlog_amount DESC
+

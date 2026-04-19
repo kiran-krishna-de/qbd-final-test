@@ -1,0 +1,31 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "dim_vendors",
+  tags: ["silver", "dimensions"],
+  description: "Silver: cleaned vendors / subcontractors",
+  bigquery: { partitionBy: "DATE(_extracted_at)" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "vendors")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS vendor_id,
+  TRIM(name)                                      AS vendor_name,
+  TRIM(nameOnCheck)                               AS name_on_check,
+  TRIM(accountNumber)                             AS account_number,
+  SAFE_CAST(balance AS NUMERIC)                   AS balance,
+  SAFE_CAST(isActive AS BOOL)                     AS is_active,
+  SAFE_CAST(isEligibleFor1099 AS BOOL)            AS is_eligible_1099,
+  SAFE_CAST(isSalesTaxAgency AS BOOL)             AS is_sales_tax_agency,
+  TRIM(vendorType)                                AS vendor_type,
+  TRIM(currency)                                  AS currency,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

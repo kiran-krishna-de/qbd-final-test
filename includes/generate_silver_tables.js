@@ -14,7 +14,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "accounts",
     silverTable: "dim_accounts",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -27,7 +27,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "customers",
     silverTable: "dim_customers",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -41,7 +41,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "vendors",
     silverTable: "dim_vendors",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -54,7 +54,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "employees",
     silverTable: "dim_employees",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -66,7 +66,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "classes",
     silverTable: "dim_classes",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -78,7 +78,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "payment_methods",
     silverTable: "dim_payment_methods",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -89,7 +89,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "sales_tax_codes",
     silverTable: "dim_sales_tax_codes",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -101,7 +101,7 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "sales_tax_items",
     silverTable: "dim_sales_tax_items",
     pk: ["id"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["id"],
     tags: ["silver", "dimensions"],
     fieldTypes: {
@@ -113,10 +113,10 @@ const SILVER_TABLE_CONFIG = [
     bronzeTable: "account_tax_lines",
     silverTable: "dim_account_tax_lines",
     pk: ["taxLineId"],
-    partitionCol: "_extracted_at",
+    partitionCol: "updatedAt",
     clusterCols: ["taxLineId"],
     tags: ["silver", "dimensions"],
-    fieldTypes: {}
+    fieldTypes: {updatedAt: "TIMESTAMP"}
   },
   {
     bronzeTable: "invoices",

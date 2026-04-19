@@ -1,0 +1,49 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_invoices",
+  tags: ["silver", "facts"],
+  description: "Silver: cleaned invoice headers",
+  bigquery: {
+    partitionBy: "transaction_date",
+    clusterBy: ["customer_id", "class_id"]
+  }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "invoices")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS invoice_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', dueDate)            AS due_date,
+  customer__id                                    AS customer_id,
+  TRIM(customer__fullName)                        AS customer_full_name,
+  class__id                                       AS class_id,
+  TRIM(class__fullName)                           AS class_name,
+  SAFE_CAST(subtotal AS NUMERIC)                  AS subtotal,
+  SAFE_CAST(salesTaxTotal AS NUMERIC)             AS sales_tax_total,
+  SAFE_CAST(salesTaxPercentage AS NUMERIC)        AS sales_tax_pct,
+  SAFE_CAST(appliedAmount AS NUMERIC)             AS applied_amount,
+  SAFE_CAST(balanceRemaining AS NUMERIC)          AS balance_remaining,
+  -- Derived: total invoice amount
+  SAFE_CAST(subtotal AS NUMERIC)
+    + SAFE_CAST(COALESCE(salesTaxTotal,'0') AS NUMERIC) AS total_amount,
+  SAFE_CAST(isPaid AS BOOL)                       AS is_paid,
+  SAFE_CAST(isPending AS BOOL)                    AS is_pending,
+  SAFE_CAST(isFinanceCharge AS BOOL)              AS is_finance_charge,
+  TRIM(memo)                                      AS memo,
+  receivablesAccount__id                          AS receivables_account_id,
+  TRIM(receivablesAccount__fullName)              AS receivables_account_name,
+  salesTaxCode__id                                AS sales_tax_code_id,
+  TRIM(billingAddress__city)                      AS billing_city,
+  TRIM(billingAddress__state)                     AS billing_state,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

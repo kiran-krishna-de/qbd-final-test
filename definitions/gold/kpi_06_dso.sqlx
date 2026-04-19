@@ -1,0 +1,44 @@
+
+-- ============================================================
+-- KPI 6: Days Sales Outstanding (DSO) / Collection Efficiency
+-- File: definitions/gold/kpi_06_dso.sqlx
+-- ============================================================
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_06_dso",
+  tags: ["gold", "kpi"],
+  description: "KPI 6: DSO - average days to collect payment by month"
+}
+
+WITH payment_match AS (
+  SELECT
+    i.invoice_id,
+    i.transaction_date                            AS invoice_date,
+    i.customer_id,
+    i.customer_full_name,
+    i.class_name,
+    i.total_amount,
+    p.transaction_date                            AS payment_date,
+    p.applied_amount,
+    DATE_DIFF(p.transaction_date, i.transaction_date, DAY) AS days_to_collect
+  FROM ${ref("qdb_silver", "fct_invoices")} i
+  LEFT JOIN ${ref("qdb_silver", "fct_receive_payments")} p
+    ON i.invoice_id = p.applied_invoice_id
+  WHERE i.is_finance_charge = FALSE
+)
+SELECT
+  DATE_TRUNC(invoice_date, MONTH)                 AS invoice_month,
+  customer_id,
+  customer_full_name,
+  class_name,
+  COUNT(DISTINCT invoice_id)                      AS invoice_count,
+  SUM(total_amount)                               AS total_invoiced,
+  SUM(applied_amount)                             AS total_collected,
+  ROUND(AVG(days_to_collect), 1)                  AS avg_days_to_collect,
+  ROUND(MIN(days_to_collect), 0)                  AS min_days,
+  ROUND(MAX(days_to_collect), 0)                  AS max_days,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM payment_match
+GROUP BY 1,2,3,4
+
