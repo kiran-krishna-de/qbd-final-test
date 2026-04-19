@@ -1,0 +1,27 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_03_aged_ap",
+  tags: ["gold", "kpi"],
+  description: "KPI 3: Aged AP buckets by vendor"
+}
+
+SELECT
+  b.bill_id,
+  b.ref_number,
+  b.transaction_date,
+  b.vendor_id,
+  b.vendor_name,
+  b.class_name,
+  b.balance_remaining,
+  b.amount,
+  DATE_DIFF(CURRENT_DATE(), b.transaction_date, DAY) AS days_outstanding,
+  CASE
+    WHEN DATE_DIFF(CURRENT_DATE(), b.transaction_date, DAY) <= 30  THEN 'Current (0-30)'
+    WHEN DATE_DIFF(CURRENT_DATE(), b.transaction_date, DAY) <= 60  THEN '31-60 Days'
+    WHEN DATE_DIFF(CURRENT_DATE(), b.transaction_date, DAY) <= 90  THEN '61-90 Days'
+    ELSE '90+ Days'
+  END                                             AS aging_bucket,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM ${ref("qdb_silver", "fct_bills")} b
+WHERE b.balance_remaining > 0

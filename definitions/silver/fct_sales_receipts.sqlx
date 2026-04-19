@@ -1,0 +1,35 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_sales_receipts",
+  tags: ["silver", "facts"],
+  description: "Silver: sales receipts (cash sales)",
+  bigquery: { partitionBy: "transaction_date" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "sales_receipts")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS receipt_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  customer__id                                    AS customer_id,
+  TRIM(customer__fullName)                        AS customer_full_name,
+  class__id                                       AS class_id,
+  TRIM(class__fullName)                           AS class_name,
+  SAFE_CAST(subtotal AS NUMERIC)                  AS subtotal,
+  SAFE_CAST(salesTaxTotal AS NUMERIC)             AS sales_tax_total,
+  SAFE_CAST(totalAmount AS NUMERIC)               AS total_amount,
+  paymentMethod__id                               AS payment_method_id,
+  TRIM(paymentMethod__fullName)                   AS payment_method,
+  depositToAccount__id                            AS deposit_account_id,
+  TRIM(memo)                                      AS memo,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updatedAt,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

@@ -1,0 +1,51 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_07_vendor_spend",
+  tags: ["gold", "kpi"],
+  description: "KPI 7: Monthly vendor spend from bills + checks"
+}
+
+WITH bill_spend AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS spend_month,
+    vendor_id,
+    vendor_name,
+    class_name,
+    expense_account_name,
+    SUM(amount)                                   AS spend_amount,
+    COUNT(DISTINCT bill_id)                       AS transaction_count,
+    'bill'                                        AS spend_source
+  FROM ${ref("qdb_silver", "fct_bills")}
+  GROUP BY 1,2,3,4,5,8
+),
+check_spend AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS spend_month,
+    payee_id                                      AS vendor_id,
+    payee_name                                    AS vendor_name,
+    class_name,
+    expense_account_name,
+    SUM(amount)                                   AS spend_amount,
+    COUNT(DISTINCT check_id)                      AS transaction_count,
+    'check'                                       AS spend_source
+  FROM ${ref("qdb_silver", "fct_checks")}
+  GROUP BY 1,2,3,4,5,8
+),
+credits AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS spend_month,
+    vendor_id,
+    vendor_name,
+    CAST(NULL AS STRING) AS class_name,
+    CAST(NULL AS STRING) AS expense_account_name,
+    SUM(credit_amount)                           AS spend_amount,
+    COUNT(DISTINCT credit_id)                     AS transaction_count,
+    'vendor_credit'                               AS spend_source
+  FROM ${ref("qdb_silver", "fct_vendor_credits")}
+  GROUP BY 1,2,3,4,5,8
+)
+SELECT * FROM bill_spend
+UNION ALL SELECT * FROM check_spend
+UNION ALL SELECT * FROM credits
+ORDER BY spend_month DESC, spend_amount DESC

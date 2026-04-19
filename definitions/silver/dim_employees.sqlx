@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "dim_employees",
+  tags: ["silver", "dimensions"],
+  description: "Silver: cleaned employees",
+  bigquery: { partitionBy: "DATE(_extracted_at)" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "employees")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS employee_id,
+  TRIM(name)                                      AS employee_name,
+  TRIM(firstName)                                 AS first_name,
+  TRIM(middleName)                                AS middle_name,
+  TRIM(lastName)                                  AS last_name,
+  TRIM(printAs)                                   AS print_as,
+  TRIM(employeeType)                              AS employee_type,
+  SAFE_CAST(isActive AS BOOL)                     AS is_active,
+  TRIM(phone)                                     AS phone,
+  TRIM(mobile)                                    AS mobile,
+  TRIM(email)                                     AS email,
+  SAFE.PARSE_DATE('%Y-%m-%d', hiredDate)          AS hired_date,
+  SAFE_CAST(targetBonus AS NUMERIC)               AS target_bonus,
+  TRIM(address__line1)                            AS address_line1,
+  TRIM(address__city)                             AS city,
+  TRIM(address__state)                            AS state,
+  TRIM(address__postalCode)                       AS postal_code,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

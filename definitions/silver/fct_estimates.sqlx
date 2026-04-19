@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_estimates",
+  tags: ["silver", "facts"],
+  description: "Silver: cleaned project estimates",
+  bigquery: { partitionBy: "transaction_date", clusterBy: ["customer_id"] }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "estimates")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS estimate_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', dueDate)            AS due_date,
+  customer__id                                    AS customer_id,
+  TRIM(customer__fullName)                        AS customer_full_name,
+  class__id                                       AS class_id,
+  TRIM(class__fullName)                           AS class_name,
+  SAFE_CAST(subtotal AS NUMERIC)                  AS subtotal,
+  SAFE_CAST(totalAmount AS NUMERIC)               AS total_amount,
+  SAFE_CAST(salesTaxTotal AS NUMERIC)             AS sales_tax_total,
+  SAFE_CAST(salesTaxPercentage AS NUMERIC)        AS sales_tax_pct,
+  SAFE_CAST(isActive AS BOOL)                     AS is_active,
+  TRIM(terms__fullName)                           AS payment_terms,
+  TRIM(memo)                                      AS memo,
+  TRIM(billingAddress__city)                      AS billing_city,
+  TRIM(billingAddress__state)                     AS billing_state,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

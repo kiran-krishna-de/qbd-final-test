@@ -1,0 +1,51 @@
+-- ============================================================
+-- KPI 8: Purchase Order Fulfillment Rate
+-- File: definitions/gold/kpi_08_po_fulfillment.sqlx
+-- ============================================================
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_08_po_fulfillment",
+  tags: ["gold", "kpi"],
+  description: "KPI 8: PO fulfillment - ordered vs received quantity and amount"
+}
+
+SELECT
+  po.po_id,
+  po.ref_number,
+  po.transaction_date,
+  po.expected_date,
+  po.vendor_id,
+  po.vendor_name,
+  po.class_name,
+  po.item_id,
+  po.item_name,
+  DATE_TRUNC(po.transaction_date, MONTH)          AS po_month,
+  po.total_amount                                 AS po_total_amount,
+  po.ordered_qty,
+  po.received_qty,
+  po.line_amount                                  AS ordered_amount,
+  COALESCE(ir.received_amount, 0)                 AS received_amount,
+  po.is_fully_received,
+  po.is_manually_closed,
+  SAFE_DIVIDE(po.received_qty, po.ordered_qty) * 100 AS fulfillment_pct,
+  CASE
+    WHEN po.is_fully_received = TRUE              THEN 'Fully Received'
+    WHEN po.is_manually_closed = TRUE             THEN 'Closed'
+    WHEN COALESCE(po.received_qty, 0) = 0         THEN 'Not Started'
+    ELSE 'Partial'
+  END                                             AS fulfillment_status,
+  DATE_DIFF(CURRENT_DATE(), po.expected_date, DAY) AS days_overdue,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM ${ref("qdb_silver", "fct_purchase_orders")} po
+LEFT JOIN (
+  SELECT item_id, vendor_id,
+    DATE_TRUNC(transaction_date, MONTH) AS receipt_month,
+    SUM(line_amount) AS received_amount
+  FROM ${ref("qdb_silver", "fct_item_receipts")}
+  GROUP BY 1,2,3
+) ir
+  ON po.item_id = ir.item_id
+  AND po.vendor_id = ir.vendor_id
+  AND DATE_TRUNC(po.transaction_date, MONTH) = ir.receipt_month
+

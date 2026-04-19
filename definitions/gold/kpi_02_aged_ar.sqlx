@@ -1,0 +1,30 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_02_aged_ar",
+  tags: ["gold", "kpi"],
+  description: "KPI 2: Aged AR buckets - Current, 1-30, 31-60, 61-90, 90+ days"
+}
+
+SELECT
+  i.invoice_id,
+  i.ref_number,
+  i.transaction_date,
+  i.due_date,
+  i.customer_id,
+  i.customer_full_name,
+  i.class_name,
+  i.balance_remaining,
+  i.total_amount,
+  DATE_DIFF(CURRENT_DATE(), i.due_date, DAY)      AS days_overdue,
+  CASE
+    WHEN i.due_date >= CURRENT_DATE()             THEN 'Current'
+    WHEN DATE_DIFF(CURRENT_DATE(), i.due_date, DAY) BETWEEN 1  AND 30 THEN '1-30 Days'
+    WHEN DATE_DIFF(CURRENT_DATE(), i.due_date, DAY) BETWEEN 31 AND 60 THEN '31-60 Days'
+    WHEN DATE_DIFF(CURRENT_DATE(), i.due_date, DAY) BETWEEN 61 AND 90 THEN '61-90 Days'
+    ELSE '90+ Days'
+  END                                             AS aging_bucket,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM ${ref("qdb_silver", "fct_invoices")} i
+WHERE i.balance_remaining > 0
+  AND i.is_paid = FALSE

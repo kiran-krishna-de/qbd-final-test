@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "dim_accounts",
+  tags: ["silver", "dimensions"],
+  description: "Silver: cleaned chart of accounts",
+  bigquery: { partitionBy: "DATE(updated_at)" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY _extracted_at DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "accounts")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS account_id,
+  TRIM(name)                                      AS account_name,
+  TRIM(fullName)                                  AS account_full_name,
+  TRIM(accountType)                               AS account_type,
+  TRIM(accountNumber)                             AS account_number,
+  TRIM(specialAccountType)                        AS special_account_type,
+  TRIM(cashFlowClassification)                    AS cash_flow_classification,
+  SAFE_CAST(balance AS NUMERIC)                   AS balance,
+  SAFE_CAST(totalBalance AS NUMERIC)              AS total_balance,
+  SAFE_CAST(isActive AS BOOL)                     AS is_active,
+  SAFE_CAST(isTaxAccount AS BOOL)                 AS is_tax_account,
+  TRIM(parent)                                    AS parent_account,
+  SAFE_CAST(sublevel AS INT64)                    AS sublevel,
+  TRIM(description)                               AS description,
+  TRIM(currency)                                  AS currency,
+  taxLineDetails__taxLineId                       AS tax_line_id,
+  TRIM(taxLineDetails__taxLineName)               AS tax_line_name,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt)  AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt)  AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)                AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

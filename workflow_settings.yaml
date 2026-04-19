@@ -1,4 +1,12 @@
 defaultProject: dummmy-gallegos
-defaultDataset: dataform
-defaultAssertionDataset: dataform_assertions
+defaultDataset: qdb_bronze
+defaultLocation: US
+defaultAssertionDataset: qdb_assertions
 dataformCoreVersion: 3.0.42
+
+
+vars:
+  bronze_dataset: qdb_bronze
+  silver_dataset: qdb_silver
+  gold_dataset: qdb_gold
+  reporting_dataset: qdb_reporting

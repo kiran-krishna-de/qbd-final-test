@@ -1,0 +1,76 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_04_job_profitability",
+  tags: ["gold", "kpi"],
+  description: "KPI 4: Job-level revenue vs cost vs gross margin by class/month"
+}
+
+WITH revenue AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS period_month,
+    class_id,
+    class_name,
+    SUM(subtotal)                                 AS total_revenue
+  FROM ${ref("qdb_silver", "fct_invoices")}
+  WHERE is_finance_charge = FALSE
+  GROUP BY 1,2,3
+),
+receipt_rev AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS period_month,
+    class_id,
+    class_name,
+    SUM(subtotal)                                 AS total_revenue
+  FROM ${ref("qdb_silver", "fct_sales_receipts")}
+  GROUP BY 1,2,3
+),
+all_revenue AS (
+  SELECT * FROM revenue
+  UNION ALL
+  SELECT * FROM receipt_rev
+),
+costs AS (
+  -- Costs from Bills
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS period_month,
+    class_id,
+    class_name,
+    'bill'                                        AS cost_type,
+    SUM(amount)                                   AS total_cost,
+  FROM ${ref("qdb_silver", "fct_bills")}
+  GROUP BY 1,2,3,4
+  UNION ALL
+  -- Costs from Checks
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS period_month,
+    class_id,
+    class_name,
+    'check'                                       AS cost_type,
+    SUM(amount)                                   AS total_cost,
+  FROM ${ref("qdb_silver", "fct_checks")}
+  GROUP BY 1,2,3,4
+),
+rev_agg AS (
+  SELECT period_month, class_id, class_name, SUM(total_revenue) AS total_revenue
+  FROM all_revenue GROUP BY 1,2,3
+),
+cost_agg AS (
+  SELECT period_month, class_id, class_name, SUM(total_cost) AS total_cost
+  FROM costs GROUP BY 1,2,3
+)
+SELECT
+  COALESCE(r.period_month, c.period_month)        AS period_month,
+  COALESCE(r.class_id, c.class_id)                AS class_id,
+  COALESCE(r.class_name, c.class_name, 'Unclassified') AS class_name,
+  COALESCE(r.total_revenue, 0)                    AS total_revenue,
+  COALESCE(c.total_cost, 0)                       AS total_cost,
+  COALESCE(r.total_revenue, 0) - COALESCE(c.total_cost, 0) AS gross_profit,
+  SAFE_DIVIDE(
+    COALESCE(r.total_revenue, 0) - COALESCE(c.total_cost, 0),
+    COALESCE(r.total_revenue, 0)
+  ) * 100                                         AS gross_margin_pct,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM rev_agg r
+FULL OUTER JOIN cost_agg c
+  ON r.period_month = c.period_month AND r.class_id = c.class_id

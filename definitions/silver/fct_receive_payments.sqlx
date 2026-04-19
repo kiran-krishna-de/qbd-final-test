@@ -1,0 +1,39 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_receive_payments",
+  tags: ["silver", "facts"],
+  description: "Silver: customer payments received",
+  bigquery: { partitionBy: "transaction_date" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "receive_payments")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS payment_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  customer__id                                    AS customer_id,
+  TRIM(customer__fullName)                        AS customer_full_name,
+  SAFE_CAST(totalAmount AS NUMERIC)               AS total_amount,
+  SAFE_CAST(unusedCredits AS NUMERIC)             AS unused_credits,
+  SAFE_CAST(unusedPayment AS NUMERIC)             AS unused_payment,
+  depositToAccount__id                            AS deposit_account_id,
+  TRIM(depositToAccount__fullName)                AS deposit_account_name,
+  receivablesAccount__id                          AS receivables_account_id,
+  paymentMethod__id                               AS payment_method_id,
+  TRIM(paymentMethod__fullName)                   AS payment_method,
+  appliedToTransactions__transactionId            AS applied_invoice_id,
+  TRIM(appliedToTransactions__transactionType)    AS applied_transaction_type,
+  SAFE_CAST(appliedToTransactions__amount AS NUMERIC) AS applied_amount,
+  SAFE_CAST(appliedToTransactions__balanceRemaining AS NUMERIC) AS balance_after,
+  SAFE_CAST(appliedToTransactions__discountAmount AS NUMERIC) AS discount_amount,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS   updated_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

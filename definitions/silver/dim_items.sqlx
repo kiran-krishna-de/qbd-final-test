@@ -1,0 +1,87 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "dim_items",
+  tags: ["silver", "dimensions"],
+  description: "Silver: unified item master (inventory + service + non-inventory)"
+}
+
+WITH inventory AS (
+  SELECT
+    id, fullName AS item_full_name, name AS item_name,
+    'inventory' AS item_type,
+    SAFE_CAST(salesPrice AS NUMERIC) AS sales_price,
+    SAFE_CAST(purchaseCost AS NUMERIC) AS purchase_cost,
+    SAFE_CAST(averageCost AS NUMERIC) AS average_cost,
+    SAFE_CAST(quantityOnHand AS NUMERIC) AS qty_on_hand,
+    SAFE_CAST(reorderPoint AS NUMERIC) AS reorder_point,
+    SAFE_CAST(isActive AS BOOL) AS is_active,
+    incomeAccount__id AS income_account_id,
+    incomeAccount__fullName AS income_account_name,
+    cogsAccount__id AS cogs_account_id,
+    cogsAccount__fullName AS cogs_account_name,
+    assetAccount__id AS asset_account_id,
+    preferredVendor__id AS preferred_vendor_id,
+    preferredVendor__fullName AS preferred_vendor_name,
+    salesTaxCode__id AS sales_tax_code_id,
+    salesTaxCode__fullName AS sales_tax_code,
+    CAST(updatedAt AS TIMESTAMP) AS updatedAt,
+    CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
+  FROM ${ref("qdb_bronze", "inventory_items")}
+  WHERE id IS NOT NULL
+),
+service AS (
+  SELECT
+    id, fullName AS item_full_name, name AS item_name,
+    'service' AS item_type,
+    SAFE_CAST(salesOrPurchaseDetails__price AS NUMERIC) AS sales_price,
+    NULL AS purchase_cost,
+    NULL AS average_cost,
+    NULL AS qty_on_hand,
+    NULL AS reorder_point,
+    SAFE_CAST(isActive AS BOOL) AS is_active,
+    salesOrPurchaseDetails__postingAccount__id AS income_account_id,
+    salesOrPurchaseDetails__postingAccount__fullName AS income_account_name,
+    CAST(NULL AS STRING) AS cogs_account_id, CAST(NULL AS STRING) AS cogs_account_name,
+    CAST(NULL AS STRING) AS asset_account_id,
+    CAST(NULL AS STRING) AS preferred_vendor_id, CAST(NULL AS STRING) AS preferred_vendor_name,
+    salesTaxCode__id AS sales_tax_code_id,
+    salesTaxCode__fullName AS sales_tax_code,
+    CAST(updatedAt AS TIMESTAMP) AS updatedAt,
+    CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
+  FROM ${ref("qdb_bronze", "service_items")}
+  WHERE id IS NOT NULL
+),
+non_inv AS (
+  SELECT
+    id, fullName AS item_full_name, name AS item_name,
+    'non_inventory' AS item_type,
+    SAFE_CAST(salesAndPurchaseDetails__salesPrice AS NUMERIC) AS sales_price,
+    SAFE_CAST(salesAndPurchaseDetails__purchaseCost AS NUMERIC) AS purchase_cost,
+    NULL AS average_cost,
+    NULL AS qty_on_hand,
+    NULL AS reorder_point,
+    SAFE_CAST(isActive AS BOOL) AS is_active,
+    salesAndPurchaseDetails__incomeAccount__id AS income_account_id,
+    salesAndPurchaseDetails__incomeAccount__fullName AS income_account_name,
+    salesAndPurchaseDetails__expenseAccount__id AS cogs_account_id,
+    salesAndPurchaseDetails__expenseAccount__fullName AS cogs_account_name,
+    CAST(NULL AS STRING) AS asset_account_id,
+    salesAndPurchaseDetails__preferredVendor__id AS preferred_vendor_id,
+    salesAndPurchaseDetails__preferredVendor__fullName AS preferred_vendor_name,
+    salesTaxCode__id AS sales_tax_code_id,
+    salesTaxCode__fullName AS sales_tax_code,
+    CAST(updatedAt AS TIMESTAMP) AS updatedAt,
+    CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
+  FROM ${ref("qdb_bronze", "non_inventory_items")}
+  WHERE id IS NOT NULL
+)
+SELECT * EXCEPT(_rn) FROM inventory  WHERE _rn = 1
+UNION ALL
+SELECT * EXCEPT(_rn) FROM service    WHERE _rn = 1
+UNION ALL
+SELECT * EXCEPT(_rn) FROM non_inv    WHERE _rn = 1
+
