@@ -1,0 +1,59 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "item_groups"],
+  uniqueKey: ["id","lines__item__id"],
+  description: "Flat item groups table parsed from raw_payload JSON. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+  const { inc } = require("../../includes/helpers.js");
+
+  const columns = [
+    // Top-level
+    "id",
+    "name",
+    "description",
+    "createdAt",
+    "updatedAt",
+    "objectType",
+    "revisionNumber",
+    "isActive",
+    "barcode",
+    "shouldPrintItemsInGroup",
+    "specialItemType",
+
+    // Lines (array → UNNEST)
+    "lines__item__fullName",
+    "lines__item__id",
+    "lines__quantity",
+    "lines__unitOfMeasure"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+WITH base AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    JSON_QUERY_ARRAY(raw_payload, '$.lines') AS lines
+  FROM ${ref("qdb_new","item_groups")}
+  WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
+  ${inc(ctx)}
+),
+
+flattened AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    l AS lines
+  FROM base,
+  UNNEST(IFNULL(lines, [])) AS l
+)
+
+SELECT
+  ${select_sql},
+  _extracted_at
+FROM flattened

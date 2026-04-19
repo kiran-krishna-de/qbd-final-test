@@ -1,0 +1,44 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "transactions"],
+  uniqueKey: ["transactionId"],
+  description: "Flat transactions table parsed from raw_payload JSON. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+  const { inc } = require("../../includes/helpers.js");
+
+  const columns = [
+    // Top-level
+    "transactionId",
+    "transactionType",
+    "transactionDate",
+    "amount",
+    "memo",
+    "refNumber",
+    "createdAt",
+    "updatedAt",
+    "currency",
+    "exchangeRate",
+    "amountInHomeCurrency",
+
+    // Account
+    "account__fullName",
+    "account__id",
+
+    // Entity
+    "entity__fullName",
+    "entity__id"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+SELECT
+  ${select_sql},
+  _extracted_at
+FROM ${ref("qdb_new","transactions")}
+WHERE JSON_VALUE(raw_payload, '$.transactionId') IS NOT NULL
+${inc(ctx)}

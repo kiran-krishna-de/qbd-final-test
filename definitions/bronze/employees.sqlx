@@ -1,0 +1,73 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "employees"],
+  uniqueKey: ["id","customFields__name","customFields__value"],
+  description: "Employees table with customFields unnested. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+  const { inc } = require("../../includes/helpers.js");
+
+  const columns = [
+    // Top-level
+    "id",
+    "accountNumber",
+    "firstName",
+    "middleName",
+    "lastName",
+    "name",
+    "printAs",
+    "employeeType",
+    "isActive",
+    "phone",
+    "mobile",
+    "email",
+    "createdAt",
+    "updatedAt",
+    "hiredDate",
+    "objectType",
+    "revisionNumber",
+    "targetBonus",
+
+    // Address
+    "address__line1",
+    "address__line2",
+    "address__line3",
+    "address__city",
+    "address__state",
+    "address__postalCode",
+    "address__country",
+
+    // From UNNEST (customFields)
+    "customFields__name",
+    "customFields__value"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+WITH base AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    JSON_QUERY_ARRAY(raw_payload, '$.customFields') AS customFields
+  FROM ${ref("qdb_new","employees")}
+  WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
+  ${inc(ctx)}
+),
+
+flattened AS (
+  SELECT
+    raw_payload,
+    _extracted_at,
+    cf AS customFields
+  FROM base,
+  UNNEST(IFNULL(customFields, [])) AS cf
+)
+
+SELECT DISTINCT
+  ${select_sql},
+  _extracted_at
+FROM flattened

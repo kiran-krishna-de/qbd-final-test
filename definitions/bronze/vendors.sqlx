@@ -1,0 +1,54 @@
+config {
+  type: "incremental",
+  schema: "qdb_bronze",
+  tags: ["bronze", "vendors"],
+  uniqueKey: ["id"],
+  description: "Flat vendor table parsed from raw_payload JSON. Nested fields use __ separator."
+}
+
+js {
+  const { buildJsonSelect } = require("../../includes/helpers.js");
+
+  const { inc } = require("../../includes/helpers.js");
+
+  const columns = [
+    "accountNumber",
+    "balance",
+    "createdAt",
+    "id",
+    "isActive",
+    "isCompoundingTax",
+    "isEligibleFor1099",
+    "isSalesTaxAgency",
+    "isTrackingPurchaseTax",
+    "isTrackingSalesTax",
+    "name",
+    "nameOnCheck",
+    "objectType",
+    "revisionNumber",
+    "updatedAt",
+
+    // Nested / structured fields (currently null-safe placeholders)
+    "billingAddress",
+    "currency",
+    "class",
+    "defaultExpenseAccounts",
+    "vendorType",
+    "salesTaxCode",
+    "salesTaxAccount",
+    "salesTaxCountry",
+    "salesTaxReturn",
+    "purchaseTaxAccount",
+    "shippingAddress"
+  ];
+
+  const select_sql = buildJsonSelect(columns);
+}
+
+SELECT
+DISTINCT  
+  ${select_sql},
+  _extracted_at
+FROM ${ref("qdb_new","vendors")}
+WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
+${inc(ctx)}
