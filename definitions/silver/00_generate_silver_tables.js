@@ -51,6 +51,7 @@ SILVER_TABLE_CONFIG
 // definitions/gold/00_generate_gold_summaries.js
 // Dynamically generates monthly rollup Gold tables
 // for all Silver fact tables
+//  ORDER BY period_month DESC
 // ============================================================
 
 const GOLD_ROLLUP_CONFIG = [
@@ -112,7 +113,7 @@ GOLD_ROLLUP_CONFIG.forEach(cfg => {
     tags: ["gold", "rollup"],
     description: `Gold: monthly rollup for ${cfg.silverTable}`,
     bigquery: {
-      partitionBy: "period_month",
+    //   partitionBy: "period_month",
       clusterBy: cfg.dimensions.slice(0, 4)
     }
   }).query(ctx => `
@@ -126,6 +127,5 @@ GOLD_ROLLUP_CONFIG.forEach(cfg => {
     GROUP BY
       period_month,
       ${dimList}
-    ORDER BY period_month DESC
   `);
 });
