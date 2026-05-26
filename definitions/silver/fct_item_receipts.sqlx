@@ -1,0 +1,41 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_item_receipts",
+  tags: ["silver", "facts"],
+  description: "Silver: inventory / material receipts from vendors"
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (
+      PARTITION BY id, itemLines__id
+      ORDER BY updatedAt DESC
+    ) AS _row_num
+  FROM ${ref("qdb_bronze", "item_receipts")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS receipt_id,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  vendor__id                                      AS vendor_id,
+  TRIM(vendor__fullName)                          AS vendor_name,
+  payablesAccount__id                             AS payables_account_id,
+  SAFE_CAST(totalAmount AS NUMERIC)               AS total_amount,
+  itemLines__id                                   AS line_id,
+  itemLines__item__id                             AS item_id,
+  TRIM(itemLines__item__fullName)                 AS item_name,
+  itemLines__customer__id                         AS customer_id,
+  TRIM(itemLines__customer__fullName)             AS customer_name,
+  itemLines__class__id                            AS class_id,
+  TRIM(itemLines__class__fullName)                AS class_name,
+  SAFE_CAST(itemLines__quantity AS NUMERIC)       AS quantity,
+  SAFE_CAST(itemLines__cost AS NUMERIC)           AS unit_cost,
+  SAFE_CAST(itemLines__amount AS NUMERIC)         AS line_amount,
+  TRIM(itemLines__billingStatus)                  AS billing_status,
+  TRIM(memo)                                      AS memo,
+  CAST(_extracted_at AS TIMESTAMP)                AS updatedAt,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1
+

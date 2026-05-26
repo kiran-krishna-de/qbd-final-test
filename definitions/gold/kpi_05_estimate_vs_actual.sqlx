@@ -1,0 +1,47 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_05_estimate_vs_actual",
+  tags: ["gold", "kpi"],
+  description: "KPI 5: Estimate amount vs actual invoiced amount per customer/job"
+}
+
+WITH estimates_agg AS (
+  SELECT
+    customer_id,
+    customer_full_name,
+    class_name,
+    DATE_TRUNC(transaction_date, MONTH)           AS estimate_month,
+    SUM(total_amount)                             AS total_estimated
+  FROM ${ref("qdb_silver", "fct_estimates")}
+  WHERE is_active = TRUE
+  GROUP BY 1,2,3,4
+),
+actuals_agg AS (
+  SELECT
+    customer_id,
+    customer_full_name,
+    class_name,
+    DATE_TRUNC(transaction_date, MONTH)           AS invoice_month,
+    SUM(subtotal)                                 AS total_invoiced
+  FROM ${ref("qdb_silver", "fct_invoices")}
+  WHERE is_finance_charge = FALSE
+  GROUP BY 1,2,3,4
+)
+SELECT
+  COALESCE(e.customer_id, a.customer_id)          AS customer_id,
+  COALESCE(e.customer_full_name, a.customer_full_name) AS customer_name,
+  COALESCE(e.class_name, a.class_name)            AS class_name,
+  COALESCE(e.estimate_month, a.invoice_month)     AS period_month,
+  COALESCE(e.total_estimated, 0)                  AS total_estimated,
+  COALESCE(a.total_invoiced, 0)                   AS total_invoiced,
+  COALESCE(a.total_invoiced, 0) - COALESCE(e.total_estimated, 0) AS variance,
+  SAFE_DIVIDE(
+    COALESCE(a.total_invoiced, 0) - COALESCE(e.total_estimated, 0),
+    COALESCE(e.total_estimated, 0)
+  ) * 100                                         AS variance_pct,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM estimates_agg e
+FULL OUTER JOIN actuals_agg a
+  ON e.customer_id = a.customer_id
+  AND e.estimate_month = a.invoice_month

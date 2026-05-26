@@ -1,0 +1,29 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_vendor_credits",
+  tags: ["silver", "facts"],
+  description: "Silver: vendor credits / returns"
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "vendor_credits")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS credit_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  vendor__id                                      AS vendor_id,
+  TRIM(vendor__fullName)                          AS vendor_name,
+  payablesAccount__id                             AS payables_account_id,
+  SAFE_CAST(creditAmount AS NUMERIC)              AS credit_amount,
+  SAFE_CAST(openAmount AS NUMERIC)                AS open_amount,
+  TRIM(memo)                                      AS memo,
+  TRIM(currency)                                  AS currency,
+  CAST(updatedAt AS TIMESTAMP)  AS updatedAt,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

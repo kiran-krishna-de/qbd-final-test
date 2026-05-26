@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_checks",
+  tags: ["silver", "facts"],
+  description: "Silver: cleaned checks / payments out",
+  bigquery: { partitionBy: "transaction_date" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "checks")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS check_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  payee__id                                       AS payee_id,
+  TRIM(payee__fullName)                           AS payee_name,
+  bankAccount__id                                 AS bank_account_id,
+  TRIM(bankAccount__fullName)                     AS bank_account_name,
+  SAFE_CAST(amount AS NUMERIC)                    AS amount,
+  -- Expense line details (flattened)
+  expenseLines__id                                AS expense_line_id,
+  SAFE_CAST(expenseLines__amount AS NUMERIC)      AS expense_line_amount,
+  expenseLines__account__id                       AS expense_account_id,
+  TRIM(expenseLines__account__fullName)           AS expense_account_name,
+  expenseLines__class__id                         AS class_id,
+  TRIM(expenseLines__class__fullName)             AS class_name,
+  TRIM(currency)                                  AS currency,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1
+

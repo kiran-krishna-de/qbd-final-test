@@ -1,0 +1,43 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "fct_purchase_orders",
+  tags: ["silver", "facts"],
+  description: "Silver: cleaned purchase orders",
+  bigquery: { partitionBy: "transaction_date", clusterBy: ["vendor_id"] }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "purchase_orders")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS po_id,
+  TRIM(refNumber)                                 AS ref_number,
+  SAFE.PARSE_DATE('%Y-%m-%d', transactionDate)    AS transaction_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', dueDate)            AS due_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', expectedDate)       AS expected_date,
+  vendor__id                                      AS vendor_id,
+  TRIM(vendor__fullName)                          AS vendor_name,
+  class__id                                       AS class_id,
+  TRIM(class__fullName)                           AS class_name,
+  SAFE_CAST(totalAmount AS NUMERIC)               AS total_amount,
+  SAFE_CAST(isFullyReceived AS BOOL)              AS is_fully_received,
+  SAFE_CAST(isManuallyClosed AS BOOL)             AS is_manually_closed,
+  -- Line details
+  lines__id                                       AS line_id,
+  lines__item__id                                 AS item_id,
+  TRIM(lines__item__fullName)                     AS item_name,
+  SAFE_CAST(lines__quantity AS NUMERIC)           AS ordered_qty,
+  SAFE_CAST(lines__receivedQuantity AS NUMERIC)   AS received_qty,
+  SAFE_CAST(lines__amount AS NUMERIC)             AS line_amount,
+  SAFE_CAST(lines__rate AS NUMERIC)               AS unit_rate,
+  SAFE_CAST(lines__isBilled AS BOOL)              AS is_billed,
+  TRIM(memo)                                      AS memo,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt)  AS updatedAt,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1

@@ -1,0 +1,58 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.gold_dataset,
+  name: "kpi_01_revenue_by_job",
+  tags: ["gold", "kpi"],
+  description: "KPI 1: Monthly revenue by job/class (invoices + sales receipts)",
+  bigquery: { partitionBy: "revenue_month", clusterBy: ["class_name", "customer_id"] }
+}
+
+WITH invoice_revenue AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS revenue_month,
+    customer_id,
+    customer_full_name,
+    class_id,
+    class_name,
+    SUM(subtotal)                                 AS revenue_excl_tax,
+    SUM(sales_tax_total)                          AS tax_collected,
+    SUM(subtotal + COALESCE(sales_tax_total, 0))  AS revenue_incl_tax,
+    COUNT(DISTINCT invoice_id)                    AS invoice_count,
+    'invoice'                                     AS source
+  FROM ${ref("qdb_silver", "fct_invoices")}
+  WHERE is_finance_charge = FALSE
+  GROUP BY 1,2,3,4,5
+),
+receipt_revenue AS (
+  SELECT
+    DATE_TRUNC(transaction_date, MONTH)           AS revenue_month,
+    customer_id,
+    customer_full_name,
+    class_id,
+    class_name,
+    SUM(subtotal)                                 AS revenue_excl_tax,
+    SUM(sales_tax_total)                          AS tax_collected,
+    SUM(total_amount)                             AS revenue_incl_tax,
+    COUNT(DISTINCT receipt_id)                    AS invoice_count,
+    'sales_receipt'                               AS source
+  FROM ${ref("qdb_silver", "fct_sales_receipts")}
+  GROUP BY 1,2,3,4,5
+),
+combined AS (
+  SELECT * FROM invoice_revenue
+  UNION ALL
+  SELECT * FROM receipt_revenue
+)
+SELECT
+  revenue_month,
+  customer_id,
+  customer_full_name,
+  class_id,
+  COALESCE(class_name, 'Unclassified')            AS class_name,
+  SUM(revenue_excl_tax)                           AS total_revenue_excl_tax,
+  SUM(tax_collected)                              AS total_tax,
+  SUM(revenue_incl_tax)                           AS total_revenue_incl_tax,
+  SUM(invoice_count)                              AS transaction_count,
+  CURRENT_TIMESTAMP()                             AS _refreshed_at
+FROM combined
+GROUP BY 1,2,3,4,5

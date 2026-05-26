@@ -1,0 +1,57 @@
+config {
+  type: "table",
+  schema: dataform.projectConfig.vars.silver_dataset,
+  name: "dim_customers",
+  tags: ["silver", "dimensions"],
+  description: "Silver: cleaned customers and jobs",
+  bigquery: { partitionBy: "DATE(_extracted_at)" }
+}
+
+WITH deduped AS (
+  SELECT *,
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
+  FROM ${ref("qdb_bronze", "customers")}
+  WHERE id IS NOT NULL
+)
+SELECT
+  id                                              AS customer_id,
+  TRIM(name)                                      AS customer_name,
+  TRIM(fullName)                                  AS customer_full_name,
+  TRIM(firstName)                                 AS first_name,
+  TRIM(middleName)                                AS middle_name,
+  TRIM(lastName)                                  AS last_name,
+  TRIM(companyName)                               AS company_name,
+  TRIM(email)                                     AS email,
+  TRIM(phone)                                     AS phone,
+  TRIM(alternatePhone)                            AS alternate_phone,
+  TRIM(parent)                                    AS parent_customer_id,
+  SAFE_CAST(sublevel AS INT64)                    AS sublevel,
+  -- sublevel > 0 means it's a Job under a Customer
+  CASE WHEN SAFE_CAST(sublevel AS INT64) > 0 THEN TRUE ELSE FALSE END AS is_job,
+  TRIM(jobStatus)                                 AS job_status,
+  TRIM(jobType)                                   AS job_type,
+  TRIM(jobDescription)                            AS job_description,
+  SAFE.PARSE_DATE('%Y-%m-%d', jobStartDate)       AS job_start_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', jobEndDate)         AS job_end_date,
+  SAFE.PARSE_DATE('%Y-%m-%d', jobProjectedEndDate) AS job_projected_end_date,
+  SAFE_CAST(balance AS NUMERIC)                   AS balance,
+  SAFE_CAST(totalBalance AS NUMERIC)              AS total_balance,
+  SAFE_CAST(creditLimit AS NUMERIC)               AS credit_limit,
+  SAFE_CAST(isActive AS BOOL)                     AS is_active,
+  TRIM(terms)                                     AS payment_terms,
+  TRIM(preferredPaymentMethod)                    AS preferred_payment_method,
+  TRIM(salesRepresentative)                       AS sales_rep,
+  TRIM(customerType)                              AS customer_type,
+  TRIM(billingAddress__line1)                     AS billing_address_line1,
+  TRIM(billingAddress__city)                      AS billing_city,
+  TRIM(billingAddress__state)                     AS billing_state,
+  TRIM(billingAddress__postalCode)                AS billing_postal_code,
+  TRIM(billingAddress__country)                   AS billing_country,
+  salesTaxCode__id                                AS sales_tax_code_id,
+  TRIM(salesTaxCode__fullName)                    AS sales_tax_code,
+  salesTaxItem__id                                AS sales_tax_item_id,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', createdAt) AS created_at,
+  SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', updatedAt) AS updated_at,
+  CAST(_extracted_at AS TIMESTAMP)               AS _extracted_at
+FROM deduped
+WHERE _row_num = 1
