@@ -13,7 +13,7 @@ WITH estimates_agg AS (
     class_name,
     DATE_TRUNC(transaction_date, MONTH)           AS estimate_month,
     SUM(total_amount)                             AS total_estimated
-  FROM ${ref("qdb_silver", "fct_estimates")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_estimates")}
   WHERE is_active = TRUE
   GROUP BY 1,2,3,4
 ),
@@ -24,7 +24,7 @@ actuals_agg AS (
     class_name,
     DATE_TRUNC(transaction_date, MONTH)           AS invoice_month,
     SUM(subtotal)                                 AS total_invoiced
-  FROM ${ref("qdb_silver", "fct_invoices")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")}
   WHERE is_finance_charge = FALSE
   GROUP BY 1,2,3,4
 )

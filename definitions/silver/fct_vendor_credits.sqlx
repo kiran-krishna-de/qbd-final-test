@@ -9,7 +9,7 @@ config {
 WITH deduped AS (
   SELECT *,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _row_num
-  FROM ${ref("qdb_bronze", "vendor_credits")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "vendor_credits")}
   WHERE id IS NOT NULL
 )
 SELECT

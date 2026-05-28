@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "bronze",
+  schema: dataform.projectConfig.vars.bronze_dataset,
   tags: ["bronze", "purchase_orders"],
   uniqueKey: ["id","lines__id"],
   description: "Flat purchase orders table parsed from raw_payload JSON. Nested fields use __ separator."

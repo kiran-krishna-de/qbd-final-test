@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "bronze",
+  schema: dataform.projectConfig.vars.bronze_dataset,
   tags: ["bronze", "payment_methods"],
   uniqueKey: ["id"],
   description: "Flat payment methods table parsed from raw_payload JSON."

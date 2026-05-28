@@ -29,10 +29,10 @@ SELECT
   DATE_TRUNC(SAFE.PARSE_DATE('%Y-%m-%d', so.transactionDate), MONTH) AS order_month,
   DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%Y-%m-%d', so.dueDate), DAY) AS days_overdue,
   CURRENT_TIMESTAMP()                             AS _refreshed_at
-FROM ${ref("qdb_bronze", "sales_orders")} so
+FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "sales_orders")} so
 LEFT JOIN (
   SELECT customer_id, SUM(subtotal) AS invoiced_amount
-  FROM ${ref("qdb_silver", "fct_invoices")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")}
   WHERE is_finance_charge = FALSE
   GROUP BY 1
 ) inv_agg ON so.customer__id = inv_agg.customer_id

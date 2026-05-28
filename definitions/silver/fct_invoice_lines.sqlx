@@ -16,7 +16,7 @@ WITH deduped AS (
       PARTITION BY id, lines__id
       ORDER BY _extracted_at DESC
     ) AS _row_num
-  FROM ${ref("qdb_bronze", "invoices")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "invoices")}
   WHERE id IS NOT NULL AND lines__id IS NOT NULL
 )
 SELECT

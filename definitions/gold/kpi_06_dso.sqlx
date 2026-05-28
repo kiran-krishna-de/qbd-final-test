@@ -22,8 +22,8 @@ WITH payment_match AS (
     p.transaction_date                            AS payment_date,
     p.applied_amount,
     DATE_DIFF(p.transaction_date, i.transaction_date, DAY) AS days_to_collect
-  FROM ${ref("qdb_silver", "fct_invoices")} i
-  LEFT JOIN ${ref("qdb_silver", "fct_receive_payments")} p
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")} i
+  LEFT JOIN ${ref(dataform.projectConfig.vars.silver_dataset, "fct_receive_payments")} p
     ON i.invoice_id = p.applied_invoice_id
   WHERE i.is_finance_charge = FALSE
 )

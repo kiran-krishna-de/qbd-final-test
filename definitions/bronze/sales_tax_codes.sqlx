@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "bronze",
+  schema: dataform.projectConfig.vars.bronze_dataset,
   tags: ["bronze", "sales_tax_codes"],
   uniqueKey: ["id"],
   description: "Flat sales tax codes table parsed from raw_payload JSON."

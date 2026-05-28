@@ -37,12 +37,12 @@ SELECT
   END                                             AS fulfillment_status,
   DATE_DIFF(CURRENT_DATE(), po.expected_date, DAY) AS days_overdue,
   CURRENT_TIMESTAMP()                             AS _refreshed_at
-FROM ${ref("qdb_silver", "fct_purchase_orders")} po
+FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_purchase_orders")} po
 LEFT JOIN (
   SELECT item_id, vendor_id,
     DATE_TRUNC(transaction_date, MONTH) AS receipt_month,
     SUM(line_amount) AS received_amount
-  FROM ${ref("qdb_silver", "fct_item_receipts")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_item_receipts")}
   GROUP BY 1,2,3
 ) ir
   ON po.item_id = ir.item_id

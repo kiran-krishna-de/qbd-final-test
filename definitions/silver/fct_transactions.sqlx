@@ -10,7 +10,7 @@ config {
 WITH deduped AS (
   SELECT *,
     ROW_NUMBER() OVER (PARTITION BY transactionId ORDER BY updatedAt DESC) AS _row_num
-  FROM ${ref("qdb_bronze", "transactions")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "transactions")}
   WHERE transactionId IS NOT NULL
 )
 SELECT

@@ -12,7 +12,7 @@ WITH revenue AS (
     class_id,
     class_name,
     SUM(subtotal)                                 AS total_revenue
-  FROM ${ref("qdb_silver", "fct_invoices")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")}
   WHERE is_finance_charge = FALSE
   GROUP BY 1,2,3
 ),
@@ -22,7 +22,7 @@ receipt_rev AS (
     class_id,
     class_name,
     SUM(subtotal)                                 AS total_revenue
-  FROM ${ref("qdb_silver", "fct_sales_receipts")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_sales_receipts")}
   GROUP BY 1,2,3
 ),
 all_revenue AS (
@@ -38,7 +38,7 @@ costs AS (
     class_name,
     'bill'                                        AS cost_type,
     SUM(amount)                                   AS total_cost,
-  FROM ${ref("qdb_silver", "fct_bills")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_bills")}
   GROUP BY 1,2,3,4
   UNION ALL
   -- Costs from Checks
@@ -48,7 +48,7 @@ costs AS (
     class_name,
     'check'                                       AS cost_type,
     SUM(amount)                                   AS total_cost,
-  FROM ${ref("qdb_silver", "fct_checks")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_checks")}
   GROUP BY 1,2,3,4
 ),
 rev_agg AS (

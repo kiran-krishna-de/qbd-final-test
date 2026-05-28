@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "bronze",
+  schema: dataform.projectConfig.vars.bronze_dataset,
   tags: ["bronze", "employees"],
   uniqueKey: ["id","customFields__name","customFields__value"],
   description: "Employees table with customFields unnested. Nested fields use __ separator."
