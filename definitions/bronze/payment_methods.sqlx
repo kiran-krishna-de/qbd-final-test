@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "qdb_bronze",
+  schema: "bronze",
   tags: ["bronze", "payment_methods"],
   uniqueKey: ["id"],
   description: "Flat payment methods table parsed from raw_payload JSON."
@@ -23,11 +23,13 @@ js {
   ];
 
   const select_sql = buildJsonSelect(columns);
+
+  const raw_dataset = dataform.projectConfig.vars.raw_dataset;
 }
 
 SELECT
   ${select_sql},
   _extracted_at
-FROM ${ref("qdb_new","payment_methods")}
+FROM ${ref(raw_dataset,"payment_methods")}
 WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
 ${inc(ctx)}

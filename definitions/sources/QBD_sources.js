@@ -7,7 +7,7 @@ const tables = ['accounts','account_tax_lines','bill_check_payments','bills','cl
 
 tables.forEach(tableName => {
   declare({
-    schema: "qdb_new",
+    schema: "raw",
     name: tableName
   });
 });
