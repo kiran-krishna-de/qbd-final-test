@@ -28,7 +28,7 @@ WITH inventory AS (
     CAST(updatedAt AS TIMESTAMP) AS updatedAt,
     CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
-  FROM ${ref("qdb_bronze", "inventory_items")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "inventory_items")}
   WHERE id IS NOT NULL
 ),
 service AS (
@@ -51,7 +51,7 @@ service AS (
     CAST(updatedAt AS TIMESTAMP) AS updatedAt,
     CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
-  FROM ${ref("qdb_bronze", "service_items")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "service_items")}
   WHERE id IS NOT NULL
 ),
 non_inv AS (
@@ -76,7 +76,7 @@ non_inv AS (
     CAST(updatedAt AS TIMESTAMP) AS updatedAt,
     CAST(_extracted_at AS TIMESTAMP) AS _extracted_at,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY updatedAt DESC) AS _rn
-  FROM ${ref("qdb_bronze", "non_inventory_items")}
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "non_inventory_items")}
   WHERE id IS NOT NULL
 )
 SELECT * EXCEPT(_rn) FROM inventory  WHERE _rn = 1

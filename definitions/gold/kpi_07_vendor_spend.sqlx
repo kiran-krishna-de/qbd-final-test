@@ -16,7 +16,7 @@ WITH bill_spend AS (
     SUM(amount)                                   AS spend_amount,
     COUNT(DISTINCT bill_id)                       AS transaction_count,
     'bill'                                        AS spend_source
-  FROM ${ref("qdb_silver", "fct_bills")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_bills")}
   GROUP BY 1,2,3,4,5,8
 ),
 check_spend AS (
@@ -29,7 +29,7 @@ check_spend AS (
     SUM(amount)                                   AS spend_amount,
     COUNT(DISTINCT check_id)                      AS transaction_count,
     'check'                                       AS spend_source
-  FROM ${ref("qdb_silver", "fct_checks")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_checks")}
   GROUP BY 1,2,3,4,5,8
 ),
 credits AS (
@@ -42,7 +42,7 @@ credits AS (
     SUM(credit_amount)                           AS spend_amount,
     COUNT(DISTINCT credit_id)                     AS transaction_count,
     'vendor_credit'                               AS spend_source
-  FROM ${ref("qdb_silver", "fct_vendor_credits")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_vendor_credits")}
   GROUP BY 1,2,3,4,5,8
 )
 SELECT * FROM bill_spend

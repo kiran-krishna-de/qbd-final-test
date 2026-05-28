@@ -19,7 +19,7 @@ WITH invoice_revenue AS (
     SUM(subtotal + COALESCE(sales_tax_total, 0))  AS revenue_incl_tax,
     COUNT(DISTINCT invoice_id)                    AS invoice_count,
     'invoice'                                     AS source
-  FROM ${ref("qdb_silver", "fct_invoices")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")}
   WHERE is_finance_charge = FALSE
   GROUP BY 1,2,3,4,5
 ),
@@ -35,7 +35,7 @@ receipt_revenue AS (
     SUM(total_amount)                             AS revenue_incl_tax,
     COUNT(DISTINCT receipt_id)                    AS invoice_count,
     'sales_receipt'                               AS source
-  FROM ${ref("qdb_silver", "fct_sales_receipts")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_sales_receipts")}
   GROUP BY 1,2,3,4,5
 ),
 combined AS (

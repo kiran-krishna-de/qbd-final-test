@@ -15,7 +15,7 @@ WITH cash_transactions AS (
     SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS inflow,
     SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) AS outflow,
     COUNT(*)                                      AS transaction_count
-  FROM ${ref("qdb_silver", "fct_transactions")}
+  FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_transactions")}
   GROUP BY 1,2,3
 ),
 transfers AS (
@@ -27,7 +27,7 @@ transfers AS (
     0                                             AS inflow,
     SUM(SAFE_CAST(t.amount AS NUMERIC))           AS outflow,
     COUNT(*)                                      AS transaction_count
-  FROM ${ref("qdb_bronze", "transfers")} t
+  FROM ${ref(dataform.projectConfig.vars.bronze_dataset, "transfers")} t
   WHERE t.id IS NOT NULL
   GROUP BY 1,2,3
 )

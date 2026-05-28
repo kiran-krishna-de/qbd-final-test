@@ -25,6 +25,6 @@ SELECT
     ELSE '90+ Days'
   END                                             AS aging_bucket,
   CURRENT_TIMESTAMP()                             AS _refreshed_at
-FROM ${ref("qdb_silver", "fct_invoices")} i
+FROM ${ref(dataform.projectConfig.vars.silver_dataset, "fct_invoices")} i
 WHERE i.balance_remaining > 0
   AND i.is_paid = FALSE
