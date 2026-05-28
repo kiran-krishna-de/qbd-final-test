@@ -28,8 +28,10 @@ const FULL_REFRESH_TABLES = [
   "account_tax_lines"
 ];
 
-const inc = (ctx, tableName) => {
-  // Skip incremental filter for selected tables
+const inc = (ctx) => {
+  // Get current table name from fully-qualified path
+  const tableName = ctx.self().split(".").pop();
+
   if (FULL_REFRESH_TABLES.includes(tableName)) {
     return "";
   }

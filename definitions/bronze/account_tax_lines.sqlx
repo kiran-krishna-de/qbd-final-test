@@ -26,5 +26,5 @@ SELECT
   _extracted_at
 FROM ${ref(raw_dataset,"account_tax_lines")}
 WHERE JSON_VALUE(raw_payload, '$.taxLineId') IS NOT NULL
-${inc(ctx,"account_tax_lines")}
+${inc(ctx)}
 
