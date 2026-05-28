@@ -25,8 +25,7 @@ function buildJsonSelect(columns, json_col = "raw_payload") {
 //   `${when(incremental(), `AND JSON_VALUE(raw_payload,'$.updatedAt') > (SELECT coalesce(MAX(updatedAt),'01-01-1900') FROM ${self()})`) }`;
 
 const FULL_REFRESH_TABLES = [
-  "account_tax_lines",
-  "some_other_table"
+  "account_tax_lines"
 ];
 
 const inc = (ctx, tableName) => {
