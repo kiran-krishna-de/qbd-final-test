@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "qdb_bronze",
+  schema: "bronze",
   tags: ["bronze", "account_tax_lines"],
   uniqueKey: ["taxLineId"],
   description: "Flat tax line details parsed from raw_payload JSON."
@@ -17,11 +17,13 @@ js {
   ];
 
   const select_sql = buildJsonSelect(columns);
+
+  const raw_dataset = dataform.projectConfig.vars.raw_dataset;
 }
 
 SELECT
   ${select_sql},
   _extracted_at
-FROM ${ref("qdb_new","account_tax_lines")}
+FROM ${ref(raw_dataset,"account_tax_lines")}
 WHERE JSON_VALUE(raw_payload, '$.taxLineId') IS NOT NULL
 ${inc(ctx)}

@@ -48,11 +48,13 @@ js {
   ];
 
   const select_sql = buildJsonSelect(columns);
+
+  const raw_dataset = dataform.projectConfig.vars.raw_dataset;
 }
 
 SELECT
   ${select_sql},
   _extracted_at
-FROM ${ref("qdb_new","non_inventory_items")}
+FROM ${ref(raw_dataset,"non_inventory_items")}
 WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
 ${inc(ctx)}

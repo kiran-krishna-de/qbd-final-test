@@ -1,12 +1,13 @@
-defaultProject: dummmy-gallegos
-defaultDataset: qdb_bronze
+defaultProject: gallegos-qbd-poc
+defaultDataset: bronze
 defaultLocation: US
 defaultAssertionDataset: qdb_assertions
 dataformCoreVersion: 3.0.42
 
 
 vars:
-  bronze_dataset: qdb_bronze
-  silver_dataset: qdb_silver
-  gold_dataset: qdb_gold
-  reporting_dataset: qdb_reporting
+  raw_dataset: raw
+  bronze_dataset: bronze
+  silver_dataset: silver
+  gold_dataset: gold
+  reporting_dataset: reporting

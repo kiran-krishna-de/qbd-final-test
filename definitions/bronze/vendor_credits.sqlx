@@ -1,6 +1,6 @@
 config {
   type: "incremental",
-  schema: "qdb_bronze",
+  schema: "bronze",
   tags: ["bronze", "vendor_credits"],
   uniqueKey: ["id","itemLines__id"],
   description: "Flat vendor credits table parsed from raw_payload JSON. Nested fields use __ separator."
@@ -55,6 +55,8 @@ js {
   ];
 
   const select_sql = buildJsonSelect(columns);
+
+  const raw_dataset = dataform.projectConfig.vars.raw_dataset;
 }
 
 WITH base AS (
@@ -62,7 +64,7 @@ WITH base AS (
     raw_payload,
     _extracted_at,
     JSON_QUERY_ARRAY(raw_payload, '$.itemLines') AS itemLines
-  FROM ${ref("qdb_new","vendor_credits")}
+  FROM ${ref(raw_dataset,"vendor_credits")}
   WHERE JSON_VALUE(raw_payload, '$.id') IS NOT NULL
   ${inc(ctx)}
 ),
