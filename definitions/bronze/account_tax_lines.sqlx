@@ -1,8 +1,7 @@
 config {
-  type: "incremental",
+  type: "table",
   schema: dataform.projectConfig.vars.bronze_dataset,
   tags: ["bronze", "account_tax_lines"],
-  uniqueKey: ["taxLineId"],
   description: "Flat tax line details parsed from raw_payload JSON."
 }
 
