@@ -24,12 +24,24 @@ function buildJsonSelect(columns, json_col = "raw_payload") {
 // const inc = () =>
 //   `${when(incremental(), `AND JSON_VALUE(raw_payload,'$.updatedAt') > (SELECT coalesce(MAX(updatedAt),'01-01-1900') FROM ${self()})`) }`;
 
-const inc = (ctx) =>
-  ctx.when(
+const FULL_REFRESH_TABLES = [
+  "account_tax_lines",
+  "some_other_table"
+];
+
+const inc = (ctx, tableName) => {
+  // Skip incremental filter for selected tables
+  if (FULL_REFRESH_TABLES.includes(tableName)) {
+    return "";
+  }
+
+  return ctx.when(
     ctx.incremental(),
-    `AND JSON_VALUE(raw_payload, '$.updatedAt') > 
+    `AND JSON_VALUE(raw_payload, '$.updatedAt') >
      (SELECT COALESCE(MAX(updatedAt), '1900-01-01') FROM ${ctx.self()})`
   );
+};
+
 
 
 
